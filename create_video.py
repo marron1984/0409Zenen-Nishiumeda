@@ -1,17 +1,20 @@
 #!/usr/bin/env python3
-"""禅園 4月懐石コース - テキストオーバーレイ付きMP4動画生成"""
+"""禅園 4月懐石コース - テキストオーバーレイ＋BGM付きMP4動画生成"""
 
 from moviepy import (
     ImageClip,
+    AudioFileClip,
     concatenate_videoclips,
     CompositeVideoClip,
     vfx,
+    afx,
 )
 from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 import os
 
 BASE_DIR = "/home/user/0409Zenen-Nishiumeda"
+BGM_PATH = os.path.join(BASE_DIR, "Wet_Streets_at_Two.mp3")
 
 # フォント
 FONT_PATH = "/usr/share/fonts/opentype/ipafont-gothic/ipagp.ttf"
@@ -23,7 +26,7 @@ FADE_DURATION = 0.8
 ZOOM_FACTOR = 0.05
 FPS = 30
 
-# 各スライドの構成: (画像, テキスト行リスト, テキスト位置)
+# 各スライドの構成（しゃぶしゃぶ→すき焼き会席コースに統一）
 SLIDES = [
     {
         "image": "3Z7A4074修.jpg",
@@ -41,19 +44,19 @@ SLIDES = [
     },
     {
         "image": "3Z7A4038.jpg",
-        "texts": ["季節の懐石コース", "", "旬の食材をふんだんに", "前菜からお造り 焼物 煮物 揚物まで"],
+        "texts": ["季節の会席コース", "", "旬の食材をふんだんに", "前菜からお造り 焼物 煮物 揚物まで"],
         "position": "bottom",
         "font_size": 36,
     },
     {
         "image": "3Z7A4108.jpg",
-        "texts": ["しゃぶしゃぶ懐石コース", "", "厳選されたお肉を", "旬のお造りとともに"],
+        "texts": ["すき焼き会席コース", "", "厳選された旬のお造りと", "上質なお肉をともに愉しむ贅沢"],
         "position": "bottom",
         "font_size": 36,
     },
     {
         "image": "3Z7A4140.jpg",
-        "texts": ["すき焼き懐石コース", "", "特選和牛の霜降りを", "きのこや旬の食材とともに"],
+        "texts": ["すき焼き会席コース", "", "特選和牛の美しい霜降りを", "きのこや旬の食材とともに"],
         "position": "bottom",
         "font_size": 36,
     },
@@ -65,7 +68,6 @@ SLIDES = [
     },
 ]
 
-# 最後のエンドカード（店舗情報）
 ENDCARD_DURATION = 5
 
 
@@ -95,7 +97,6 @@ def draw_text_overlay(img, texts, position="bottom", font_size=36,
     draw = ImageDraw.Draw(overlay)
     font = ImageFont.truetype(FONT_PATH, font_size)
 
-    # テキスト全体の高さを計算
     line_height = font_size + 12
     total_text_height = len(texts) * line_height
 
@@ -104,16 +105,14 @@ def draw_text_overlay(img, texts, position="bottom", font_size=36,
         sub_line_height = sub_font_size + 10
         total_text_height += len(sub_texts) * sub_line_height + 20
 
-    # 背景帯の位置
     padding = 40
     if position == "center":
         y_start = (OUT_H - total_text_height) // 2 - padding
         bg_height = total_text_height + padding * 2
-    else:  # bottom
+    else:
         y_start = OUT_H - total_text_height - padding * 2 - 30
         bg_height = total_text_height + padding * 2
 
-    # 半透明の背景帯を描画
     bg_overlay = Image.new("RGBA", (OUT_W, OUT_H), (0, 0, 0, 0))
     bg_draw = ImageDraw.Draw(bg_overlay)
     bg_draw.rectangle(
@@ -123,7 +122,6 @@ def draw_text_overlay(img, texts, position="bottom", font_size=36,
     overlay = Image.alpha_composite(overlay.convert("RGBA"), bg_overlay)
     draw = ImageDraw.Draw(overlay)
 
-    # メインテキスト描画
     y = y_start + padding
     for text in texts:
         if text == "":
@@ -132,12 +130,10 @@ def draw_text_overlay(img, texts, position="bottom", font_size=36,
         bbox = draw.textbbox((0, 0), text, font=font)
         text_w = bbox[2] - bbox[0]
         x = (OUT_W - text_w) // 2
-        # 影
         draw.text((x + 2, y + 2), text, font=font, fill=(0, 0, 0, 200))
         draw.text((x, y), text, font=font, fill=(255, 255, 255, 255))
         y += line_height
 
-    # サブテキスト描画
     if sub_texts:
         y += 20
         sub_font = ImageFont.truetype(FONT_PATH, sub_font_size)
@@ -157,12 +153,10 @@ def create_endcard():
     img = Image.new("RGB", (OUT_W, OUT_H), (30, 10, 10))
     draw = ImageDraw.Draw(img)
 
-    # 装飾ライン
     line_color = (180, 150, 100)
     draw.line([(OUT_W // 4, 280), (OUT_W * 3 // 4, 280)], fill=line_color, width=2)
     draw.line([(OUT_W // 4, 1070), (OUT_W * 3 // 4, 1070)], fill=line_color, width=2)
 
-    # 店名
     title_font = ImageFont.truetype(FONT_PATH, 56)
     sub_font = ImageFont.truetype(FONT_PATH, 30)
     info_font = ImageFont.truetype(FONT_PATH, 26)
@@ -201,7 +195,6 @@ def make_zoom_clip_with_text(slide_info, duration):
     img_path = os.path.join(BASE_DIR, slide_info["image"])
     img = resize_and_crop_center(img_path)
 
-    # テキストオーバーレイ
     img = draw_text_overlay(
         img,
         slide_info["texts"],
@@ -211,7 +204,6 @@ def make_zoom_clip_with_text(slide_info, duration):
         slide_info.get("sub_font_size", 28),
     )
 
-    # ズーム用に少し大きめ
     zoom_w = int(OUT_W * (1 + ZOOM_FACTOR * 2))
     zoom_h = int(OUT_H * (1 + ZOOM_FACTOR * 2))
     img_large = img.resize((zoom_w, zoom_h), Image.LANCZOS)
@@ -235,7 +227,7 @@ def make_zoom_clip_with_text(slide_info, duration):
     return clip
 
 
-print("テキスト付き動画の生成を開始します...")
+print("テキスト＋BGM付き動画の生成を開始します...")
 
 clips = []
 for i, slide in enumerate(SLIDES):
@@ -252,7 +244,7 @@ for i, slide in enumerate(SLIDES):
 
     clips.append(clip)
 
-# エンドカード作成
+# エンドカード
 print("  [END] 店舗情報カード")
 endcard_img = create_endcard()
 endcard_path = os.path.join(BASE_DIR, "_temp_endcard.jpg")
@@ -268,12 +260,25 @@ clips.append(endcard_clip)
 # 結合
 final = concatenate_videoclips(clips, method="compose", padding=-FADE_DURATION)
 
+# BGM追加
+print("  [BGM] Wet_Streets_at_Two.mp3")
+bgm = AudioFileClip(BGM_PATH)
+
+# 動画の長さに合わせてBGMをカット＋フェードアウト
+video_duration = final.duration
+if bgm.duration > video_duration:
+    bgm = bgm.subclipped(0, video_duration)
+bgm = bgm.with_effects([afx.AudioFadeOut(2.0)])
+
+final = final.with_audio(bgm)
+
 output_path = os.path.join(BASE_DIR, "april_kaiseki_slideshow.mp4")
 final.write_videofile(
     output_path,
     fps=FPS,
     codec="libx264",
-    audio=False,
+    audio_codec="aac",
+    audio_bitrate="192k",
     preset="medium",
     bitrate="5000k",
 )
@@ -287,5 +292,5 @@ for f in ["_temp_frame.jpg", "_temp_endcard.jpg"]:
 print(f"\n✅ 動画を生成しました: {output_path}")
 size_mb = os.path.getsize(output_path) / (1024 * 1024)
 print(f"   ファイルサイズ: {size_mb:.1f} MB")
-dur = final.duration
-print(f"   動画の長さ: 約{dur:.1f}秒")
+print(f"   動画の長さ: 約{final.duration:.1f}秒")
+print(f"   BGM: Wet_Streets_at_Two.mp3（フェードアウト付き）")
