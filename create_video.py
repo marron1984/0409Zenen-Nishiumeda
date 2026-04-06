@@ -15,7 +15,8 @@ import os
 
 BASE_DIR = "/home/user/0409Zenen-Nishiumeda"
 BGM_PATH = os.path.join(BASE_DIR, "Wet_Streets_at_Two.mp3")
-FONT_PATH = "/usr/share/fonts/opentype/ipafont-gothic/ipagp.ttf"
+FONT_PATH = "/usr/share/fonts/opentype/noto/NotoSerifCJK-Regular.ttc"
+FONT_BOLD_PATH = "/usr/share/fonts/opentype/noto/NotoSerifCJK-SemiBold.ttc"
 
 OUT_W, OUT_H = 1080, 1350
 FADE_DURATION = 0.8
@@ -172,9 +173,10 @@ def draw_text_overlay(img, slide):
         overlay = Image.alpha_composite(overlay.convert("RGBA"), dark).convert("RGB")
 
     draw = ImageDraw.Draw(overlay)
-    font = ImageFont.truetype(FONT_PATH, font_size)
-    price_font = ImageFont.truetype(FONT_PATH, int(font_size * 0.9))
-    tag_font = ImageFont.truetype(FONT_PATH, 22)
+    font = ImageFont.truetype(FONT_PATH, font_size, encoding="utf-8")
+    title_font_bold = ImageFont.truetype(FONT_BOLD_PATH, font_size, encoding="utf-8")
+    price_font = ImageFont.truetype(FONT_PATH, int(font_size * 0.9), encoding="utf-8")
+    tag_font = ImageFont.truetype(FONT_BOLD_PATH, 22, encoding="utf-8")
 
     line_height = font_size + 14
     total_text_height = 0
@@ -223,9 +225,9 @@ def draw_text_overlay(img, slide):
             y += 10
             continue
 
-        # タイトル行（コース名・価格）は金色
+        # タイトル行（コース名・価格）は金色＋ボールド明朝
         if title_lines and i < title_lines:
-            use_font = font if i == 0 else price_font
+            use_font = title_font_bold if i == 0 else price_font
             color = (220, 200, 160, 255)
         else:
             use_font = font
@@ -261,10 +263,10 @@ def create_endcard():
     draw.line([(OUT_W // 4, 280), (OUT_W * 3 // 4, 280)], fill=line_color, width=2)
     draw.line([(OUT_W // 4, 1070), (OUT_W * 3 // 4, 1070)], fill=line_color, width=2)
 
-    title_font = ImageFont.truetype(FONT_PATH, 56)
-    sub_font = ImageFont.truetype(FONT_PATH, 30)
-    info_font = ImageFont.truetype(FONT_PATH, 26)
-    small_font = ImageFont.truetype(FONT_PATH, 22)
+    title_font = ImageFont.truetype(FONT_BOLD_PATH, 56, encoding="utf-8")
+    sub_font = ImageFont.truetype(FONT_BOLD_PATH, 30, encoding="utf-8")
+    info_font = ImageFont.truetype(FONT_PATH, 26, encoding="utf-8")
+    small_font = ImageFont.truetype(FONT_PATH, 22, encoding="utf-8")
 
     lines = [
         (title_font, "西梅田 禅園", (255, 255, 255), 320),
