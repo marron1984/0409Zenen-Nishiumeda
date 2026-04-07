@@ -39,7 +39,7 @@ SLIDES = [
     {
         "image": "3Z7A3991.jpg",
         "duration": 4,
-        "texts": ["━  前 菜  ━", "", "うすい豆  筍木乃芽和え", "さより小袖寿司  桜葉", "三色団子  桜海老  バイ貝旨煮"],
+        "texts": ["━  前 菜  ━", "", "うすい豆  筍木乃芽和え", "さより小袖寿司  蛸やわらか煮", "三色団子  厚焼き玉子  桜海老  バイ貝旨煮"],
         "position": "bottom",
         "font_size": 32,
         "tag": "全コース共通",
@@ -54,10 +54,11 @@ SLIDES = [
             "",
             "造里｜初鰹・桜鯛・平貝",
             "焼物｜鰆二色焼き 木の芽味噌",
+            "揚物｜鯛と牛蒡の春巻き 桜海老寄せ揚げ",
             "温物｜若竹煮 鯛の子",
         ],
         "position": "bottom",
-        "font_size": 32,
+        "font_size": 28,
         "title_lines": 2,
     },
     # 4. 花緑青コース
@@ -68,18 +69,20 @@ SLIDES = [
             "花緑青（はなろくしょう）コース",
             "9,800円",
             "",
-            "造里｜本鮪 縞鯵 キャビア 赤貝",
-            "焼物｜黒毛和牛ロース炙り 甘夏ソース",
+            "造里｜本鮪 縞鯵 菜の花 赤貝",
+            "焼物｜黒毛和牛ロース炙り",
+            "揚物｜鯛と牛蒡の春巻き 桜海老寄せ揚げ",
             "温物｜めばるの南蛮煮",
         ],
         "position": "bottom",
-        "font_size": 32,
+        "font_size": 28,
         "title_lines": 2,
     },
-    # 5. 宗伝唐茶コース
+    # 5. 宗伝唐茶コース（引きの画 = ズーム抑制）
     {
         "image": "3Z7A4108.jpg",
         "duration": 5,
+        "wide_shot": True,
         "texts": [
             "宗伝唐茶（そうでんからちゃ）コース",
             "12,800円",
@@ -87,10 +90,11 @@ SLIDES = [
             "椀物｜新玉葱すり流し 鴨ロース",
             "造里｜鰆焼霜・剣先烏賊・本鮪・赤貝",
             "焼物｜黒毛和牛ロース炙り",
+            "蓋物｜桜鯛と筍の飯蒸し",
             "温物｜ホタルイカしゃぶしゃぶ小鍋",
         ],
         "position": "bottom",
-        "font_size": 30,
+        "font_size": 26,
         "title_lines": 2,
     },
     # 6. 空五倍子色コース
@@ -101,12 +105,14 @@ SLIDES = [
             "空五倍子色（うつぶしいろ）コース",
             "15,800円",
             "",
+            "椀物｜新玉葱すり流し 鴨ロース",
             "造里｜縞鯵薄造里 鮑 本鮪にぎり 雲丹肉巻き",
             "焼物｜甘鯛塩焼き",
+            "蓋物｜桜鯛と筍の飯蒸し",
             "温物｜黒毛和牛サーロインすき焼き小鍋",
         ],
         "position": "bottom",
-        "font_size": 30,
+        "font_size": 26,
         "title_lines": 2,
     },
     # 7. 甘味（全コース共通）
@@ -139,20 +145,38 @@ SLIDES = [
 ENDCARD_DURATION = 5
 
 
-def resize_and_crop_center(img_path):
+def resize_and_crop_center(img_path, wide_shot=False):
     img = Image.open(img_path).convert("RGB")
     w, h = img.size
     target_ratio = OUT_W / OUT_H
-    if w / h > target_ratio:
-        new_w = int(h * target_ratio)
-        left = (w - new_w) // 2
-        img = img.crop((left, 0, left + new_w, h))
+    if wide_shot:
+        # 引きの画：全体が見えるようにフィット（余白は黒）
+        img_ratio = w / h
+        if img_ratio > target_ratio:
+            # 横長画像 → 幅にフィット、上下に黒帯
+            new_w = OUT_W
+            new_h = int(OUT_W / img_ratio)
+        else:
+            # 縦長画像 → 高さにフィット、左右に黒帯
+            new_h = OUT_H
+            new_w = int(OUT_H * img_ratio)
+        img_resized = img.resize((new_w, new_h), Image.LANCZOS)
+        canvas = Image.new("RGB", (OUT_W, OUT_H), (15, 5, 5))
+        x_off = (OUT_W - new_w) // 2
+        y_off = (OUT_H - new_h) // 2
+        canvas.paste(img_resized, (x_off, y_off))
+        return canvas
     else:
-        new_h = int(w / target_ratio)
-        top = (h - new_h) // 2
-        img = img.crop((0, top, w, top + new_h))
-    img = img.resize((OUT_W, OUT_H), Image.LANCZOS)
-    return img
+        if w / h > target_ratio:
+            new_w = int(h * target_ratio)
+            left = (w - new_w) // 2
+            img = img.crop((left, 0, left + new_w, h))
+        else:
+            new_h = int(w / target_ratio)
+            top = (h - new_h) // 2
+            img = img.crop((0, top, w, top + new_h))
+        img = img.resize((OUT_W, OUT_H), Image.LANCZOS)
+        return img
 
 
 def draw_text_overlay(img, slide):
@@ -293,11 +317,15 @@ def create_endcard():
 
 def make_zoom_clip(slide, duration):
     img_path = os.path.join(BASE_DIR, slide["image"])
-    img = resize_and_crop_center(img_path)
+    wide_shot = slide.get("wide_shot", False)
+    img = resize_and_crop_center(img_path, wide_shot=wide_shot)
     img = draw_text_overlay(img, slide)
 
-    zoom_w = int(OUT_W * (1 + ZOOM_FACTOR * 2))
-    zoom_h = int(OUT_H * (1 + ZOOM_FACTOR * 2))
+    # 引きの画はズームを抑える
+    zoom = 0.02 if wide_shot else ZOOM_FACTOR
+
+    zoom_w = int(OUT_W * (1 + zoom * 2))
+    zoom_h = int(OUT_H * (1 + zoom * 2))
     img_large = img.resize((zoom_w, zoom_h), Image.LANCZOS)
 
     temp_path = os.path.join(BASE_DIR, "_temp_frame.jpg")
@@ -306,7 +334,7 @@ def make_zoom_clip(slide, duration):
     clip = (
         ImageClip(temp_path)
         .with_duration(duration)
-        .resized(lambda t: 1 - ZOOM_FACTOR + ZOOM_FACTOR * (t / duration))
+        .resized(lambda t: 1 - zoom + zoom * (t / duration))
     )
     clip = clip.cropped(
         x_center=zoom_w // 2, y_center=zoom_h // 2,
